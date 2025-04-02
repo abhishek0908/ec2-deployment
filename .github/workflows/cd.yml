@@ -46,9 +46,36 @@ jobs:
           echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
           chmod 600 deploy_key.pem
 
+          # Ensure .ssh directory exists
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
           # Add the server to known hosts to avoid SSH confirmation prompt
           ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
           # Connect to the server and deploy
           ssh -i deploy_key.pem $SERVER_USER@$SERVER_IP << 'EOF'
+            # Navigate to the project directory
+            cd /path/to/your/django/project
+
+            # Pull the latest changes from GitHub
+            git pull origin main
+
+            # Activate virtual environment
+            source /path/to/venv/bin/activate
+
+            # Install dependencies
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Apply database migrations
+            python manage.py migrate
+
+            # Collect static files
+            python manage.py collectstatic --noinput
+
+            # Restart Gunicorn and Nginx
+            sudo systemctl restart gunicorn
+            sudo systemctl restart nginx
           EOF
