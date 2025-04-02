@@ -65,7 +65,7 @@ jobs:
             git pull origin main
 
             # Activate virtual environment
-            source venv/bin/activate  # Ensure this matches your build job
+            source .venv/bin/activate  # Ensure this matches your build job
 
             # Install dependencies
             pip install --upgrade pip
