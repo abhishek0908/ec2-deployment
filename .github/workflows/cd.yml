@@ -3,7 +3,7 @@ name: Django CI/CD Pipeline
 on:
   push:
     branches:
-      - main # Trigger deployment on push to main branch
+      - main # Trigger deployment on push to the main branch
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10" # Change as per your Django project
+          python-version: "3.10" # Adjust as per your Django project
 
       - name: Install dependencies
         run: |
@@ -36,13 +36,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy Django App to Server
+      - name: Set up SSH Key & Deploy
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SERVER_IP: ${{ secrets.SERVER_IP }}
           SERVER_USER: ${{ secrets.SERVER_USER }}
         run: |
-          echo "$SSH_PRIVATE_KEY" > deploy_key.pem
+          # Create the SSH key file
+          echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
           chmod 600 deploy_key.pem
-          ssh -o StrictHostKeyChecking=no -i deploy_key.pem $SERVER_USER@$SERVER_IP << 'EOF'
+
+          # Add the server to known hosts to avoid SSH confirmation prompt
+          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+
+          # Connect to the server and deploy
+          ssh -i deploy_key.pem $SERVER_USER@$SERVER_IP << 'EOF'
           EOF
