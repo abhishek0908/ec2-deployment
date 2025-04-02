@@ -57,25 +57,15 @@ jobs:
           # Connect to the server and deploy
           ssh -i deploy_key.pem $SERVER_USER@$SERVER_IP << 'EOF'
             # Navigate to the project directory
-            cd /path/to/your/django/project
+            cd /home/ubuntu/ec2-deployment
 
             # Pull the latest changes from GitHub
             git pull origin main
 
             # Activate virtual environment
-            source /path/to/venv/bin/activate
+            source .venv/bin/activate
 
             # Install dependencies
             pip install --upgrade pip
             pip install -r requirements.txt
-
-            # Apply database migrations
-            python manage.py migrate
-
-            # Collect static files
-            python manage.py collectstatic --noinput
-
-            # Restart Gunicorn and Nginx
-            sudo systemctl restart gunicorn
-            sudo systemctl restart nginx
           EOF
