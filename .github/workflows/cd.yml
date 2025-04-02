@@ -1,73 +1,48 @@
-name: Django CI/CD Pipeline
+deploy:
+  needs: build
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-on:
-  push:
-    branches:
-      - main # Trigger deployment on push to the main branch
+    - name: Set up SSH Key & Deploy
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        SERVER_IP: ${{ secrets.SERVER_IP }}
+        SERVER_USER: ${{ secrets.SERVER_USER }}
+      run: |
+        # Create the SSH key file
+        echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
+        chmod 600 deploy_key.pem
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+        # Ensure .ssh directory exists
+        mkdir -p ~/.ssh
+        chmod 700 ~/.ssh
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.10" # Adjust as per your Django project
+        # Add the server to known hosts to avoid SSH confirmation prompt
+        ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
+        chmod 644 ~/.ssh/known_hosts
 
-      - name: Install dependencies
-        run: |
-          python -m venv venv
-          source venv/bin/activate
+        # Connect to the server and deploy
+        ssh -i deploy_key.pem -o ServerAliveInterval=60 $SERVER_USER@$SERVER_IP << 'EOF'
+          set -e  # Exit on any error
+          
+          # Navigate to the project directory
+          cd /home/ubuntu/ec2-deployment
+
+          # Pull the latest changes from GitHub
+          git pull origin main
+
+          # Activate virtual environment
+          source venv/bin/activate  # Ensure this matches your build job
+
+          # Install dependencies
           pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Django tests
-        run: |
-          source venv/bin/activate
-          python manage.py test
+          # Apply migrations
+          python3 manage.py migrate
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up SSH Key & Deploy
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SERVER_IP: ${{ secrets.SERVER_IP }}
-          SERVER_USER: ${{ secrets.SERVER_USER }}
-        run: |
-          # Create the SSH key file
-          echo "$SSH_PRIVATE_KEY" | tr -d '\r' > deploy_key.pem
-          chmod 600 deploy_key.pem
-
-          # Ensure .ssh directory exists
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-
-          # Add the server to known hosts to avoid SSH confirmation prompt
-          ssh-keyscan -H $SERVER_IP >> ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-          # Connect to the server and deploy
-          ssh -i deploy_key.pem $SERVER_USER@$SERVER_IP << 'EOF'
-            # Navigate to the project directory
-            cd /home/ubuntu/ec2-deployment
-
-            # Pull the latest changes from GitHub
-            git pull origin main
-
-            # Activate virtual environment
-            source .venv/bin/activate
-
-            # Install dependencies
-            pip install --upgrade pip
-            pip install -r requirements.txt
-
-            python3 manage.py runserver
-          EOF
+          # Restart the Django application
+          nohup python3 manage.py runserver 0.0.0.0:8000 > server.log 2>&1 &
+        EOF
