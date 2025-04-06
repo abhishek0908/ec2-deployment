@@ -75,5 +75,5 @@ jobs:
             python3 manage.py migrate
 
             # Restart the Django application
-            nohup python3 manage.py runserver 0.0.0.0:8080 > server.log 2>&1 &
+            sudo systemctl restart deployment.service
           EOF
