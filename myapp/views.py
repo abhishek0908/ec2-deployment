@@ -22,4 +22,4 @@ def create_item(request):
 
 @api_view(["GET"])
 def hello_world(request):
-    return Response({"message": "Hello, Anshul!"})
+    return Response({"message": "Hello, this is abhishek a software enginner!"})
